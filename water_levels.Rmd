@@ -1,0 +1,116 @@
+---
+title: "Initial exploration of Great Lakes historical water levels"
+output: html_notebook
+---
+
+```{r}
+library(readr)
+library(lubridate)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+```
+
+We'll read in the data with readr. The raw data file was obtained from:
+
+http://lre-wm.usace.army.mil/ForecastData/GLHYD_data_metric.csv
+
+
+```{r}
+# Top 12 lines are meta-data
+GLHYD_data_metric <- read_csv("GLHYD_data_metric.csv", skip = 12)
+```
+
+Let's create a date column.
+
+```{r}
+GLHYD_data_metric$date <- as.POSIXct(str_c(GLHYD_data_metric$month, " 1, ",
+                                                GLHYD_data_metric$year),
+                                          format="%b %d, %Y")
+```
+
+Get dataframe into "tidy" format by creating a `lake` field and gathering (melt) the lake fields.
+
+```{r}
+glhyd <- GLHYD_data_metric %>%
+  gather(3:7, key = "lake", value = "waterlevelm") %>%
+  select(3:5)
+
+glhyd
+```
+
+Time series on one plot.
+
+```{r}
+ggplot(glhyd) + geom_line(aes(x=date, y = waterlevelm, colour = lake))
+```
+
+```{r fig.width=16, fig.height=16}
+ts_all <- ggplot(glhyd) + geom_line(aes(x=date, y = waterlevelm, colour = lake)) + 
+  facet_grid(lake~., scales = "free")
+
+ts_all
+```
+
+Compute mean water levels.
+
+```{r}
+glhyd_stats <- glhyd %>%
+  group_by(lake) %>%
+  summarize(
+    mean_level = mean(waterlevelm),
+    sd_level = sd(waterlevelm),
+    min_level = min(waterlevelm),
+    max_level = max(waterlevelm),
+    p05_level = quantile(waterlevelm, 0.05),
+    p95_level = quantile(waterlevelm, 0.95)
+  )
+
+glhyd_stats
+```
+
+
+https://drsimonj.svbtle.com/plotting-individual-observations-and-group-means-with-ggplot2
+
+Let's try to combine time series with lines from the stats dataframe just created. Start with
+just one lake and then we can try with faceted plot by lake.
+
+
+
+```{r}
+glhyd_huron <- glhyd %>%
+  filter(lake == 'Michigan-Huron')
+
+glhyd_stats_huron <- glhyd_stats %>%
+  filter(lake == 'Michigan-Huron')
+```
+
+```{r}
+ggplot(glhyd_huron, aes(x = date, y = waterlevelm)) +
+  geom_line()
+```
+
+
+```{r}
+ggplot(glhyd_huron, aes(x = date, y = waterlevelm)) +
+  geom_line() + geom_hline(yintercept = gly)
+```
+
+Add overall mean and a moving average.
+
+```{r}
+
+```
+
+
+
+
+```{r}
+glhyd %>%
+  filter(lake == 'Michigan-Huron') %>%
+  ggplot() + geom_line(aes(x=date, y = waterlevelm)) +
+  labs(x = 'Year', y = 'Water level (m)') +
+  geom_hline(yintercept = mean(y))
+```
