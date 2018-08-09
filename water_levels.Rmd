@@ -137,6 +137,7 @@ ggplot(glhyd_ts_stats, aes(x = date, y = waterlevelm, colour = lake)) +
   facet_grid(lake ~ ., scales = "free") +
   geom_line() + 
   geom_line(aes(y = mean_level)) + 
+  geom_ma
   geom_line(linetype = "dashed", aes(y = p05_level)) + 
   geom_line(linetype = "dashed", aes(y = p95_level))
 ```
