@@ -47,7 +47,7 @@ Time series on one plot.
 ggplot(glhyd) + geom_line(aes(x=date, y = waterlevelm, colour = lake))
 ```
 
-```{r fig.width=16, fig.height=16}
+```{r fig.width=16, fig.height=15}
 ts_all <- ggplot(glhyd) + geom_line(aes(x=date, y = waterlevelm, colour = lake)) + 
   facet_grid(lake~., scales = "free")
 
@@ -95,13 +95,50 @@ ggplot(glhyd_huron, aes(x = date, y = waterlevelm)) +
 
 ```{r}
 ggplot(glhyd_huron, aes(x = date, y = waterlevelm)) +
-  geom_line() + geom_hline(yintercept = gly)
+  geom_line() + geom_hline(yintercept = glhyd_stats_huron$mean_level)
 ```
+
+Can I do it with a `geom_line` instead of a `geom_hline`?
+
+```{r}
+glhyd_stats2 <- glhyd %>%
+  filter(lake == 'Michigan-Huron') %>%
+  group_by(lake) %>%
+  summarize(
+    waterlevelm = mean(waterlevelm),
+    sd_level = sd(waterlevelm),
+    min_level = min(waterlevelm),
+    max_level = max(waterlevelm),
+    p05_level = quantile(waterlevelm, 0.05),
+    p95_level = quantile(waterlevelm, 0.95)
+  )
+
+glhyd_stats2
+```
+
+```{r}
+ggplot(glhyd_huron, aes(x = date, y = waterlevelm)) +
+  geom_line() + geom_line(data = glhyd_stats2, aes(y = waterlevelm))
+```
+Tried and true approach is to add columns to original dataframe with repeated values or create
+dataframe by date with repeated values (and then try to overlay)
+
+
+```{r}
+glhyd_ts_stats <- merge(x = glhyd, y = glhyd_stats) %>%
+  arrange(lake, date)
+```
+
 
 Add overall mean and a moving average.
 
-```{r}
-
+```{r ig.width=16, fig.height=15}
+ggplot(glhyd_ts_stats, aes(x = date, y = waterlevelm, colour = lake)) +
+  facet_grid(lake ~ ., scales = "free") +
+  geom_line() + 
+  geom_line(aes(y = mean_level)) + 
+  geom_line(linetype = "dashed", aes(y = p05_level)) + 
+  geom_line(linetype = "dashed", aes(y = p95_level))
 ```
 
 
