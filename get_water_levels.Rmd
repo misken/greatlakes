@@ -1,0 +1,318 @@
+---
+title: "Initial exploration of Great Lakes historical water levels"
+output: html_notebook
+---
+
+```{r libs, warning=FALSE, message=FALSE}
+library(readr)
+library(lubridate)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+```
+Dashboard page: https://www.glerl.noaa.gov/data/dashboard/GLD_HTML5.html
+
+Data download page: https://www.glerl.noaa.gov/data/dashboard/data/
+
+Get all the data as a zip file:
+https://www.glerl.noaa.gov/data/dashboard/GLDData.zip
+
+Great Lakes Environmental Research Lab
+https://www.glerl.noaa.gov/
+
+Great Lakes Water Level Overview and Observations tab
+https://www.glerl.noaa.gov/data/wlevels/levels.html#overview
+https://www.glerl.noaa.gov/data/wlevels/levels.html#observations
+
+
+
+
+We'll read in the data with readr. The raw data file was obtained from:
+
+http://lre-wm.usace.army.mil/ForecastData/GLHYD_data_metric.csv
+
+Unfortunately, it appears the above file is only updated annually.
+We will need to reconstruct it from the raw data files if we want
+to analyze recent 2019 data.
+
+```{r, readGLHYD, message=FALSE}
+# Top 12 lines are meta-data
+GLHYD_data_metric <- read_csv("GLHYD_data_metric.csv", skip = 12)
+```
+
+We can download csv files from NOAA at the following location:
+
+```{r}
+data_loc <- "https://www.glerl.noaa.gov/data/dashboard/data/levels/1918_PRES/"
+```
+
+Read in monthly water level data for each lake. Top two lines are metadata. Here's what a little bit of the Lake Superior file, `superior1918.csv`, looks like.
+
+    Lake Superior:, Monthly Lake-Wide Average Water Levels (1918 - Present)
+    Source:, NOAA/NOS; CHS
+    year,jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec
+    1918,183.25,183.2,183.17,183.14,183.22,183.34,183.4,183.43,183.45,183.44,183.46,183.44
+    1919,183.38,183.32,183.28,183.31,183.38,183.45,183.48,183.47,183.46,183.42,183.43,183.39
+    1920,183.29,183.27,183.28,183.36,183.43,183.52,183.58,183.6,183.54,183.5,183.43,183.36
+
+
+
+```{r, readcsv, message=FALSE}
+miHuron1918 <- read_csv(str_c(data_loc, "miHuron1918.csv"), skip = 2)
+ontario1918 <- read_csv(str_c(data_loc, "ontario1918.csv"), skip = 2)
+erie1918 <- read_csv(str_c(data_loc, "erie1918.csv"), skip = 2)
+superior1918 <- read_csv(str_c(data_loc, "superior1918.csv"), skip = 2)
+clair1918 <- read_csv(str_c(data_loc, "ontario1918.csv"), skip = 2)
+```
+
+Looking at the structure of one of these tables reveals that it is in
+wide format with the months as columns.
+
+```{r}
+head(miHuron1918)
+str(miHuron1918)
+```
+
+Notice that the data is in
+*wide format* with the months as columns. In order to facilitate plotting with ggplot2, we are going to need to reshape this data into *long format*. Each row will be a single monthly reading and their will be a month column. This could be done with the `melt()` function from the `reshape2` package or `gather()` from the `tidyr` package. Let's use the `tidyr::gather` function. 
+
+```{r}
+miHuron1918_long <- gather(miHuron1918, "month", "mihuron", 2:13)
+ontario1918_long <- gather(ontario1918, "month", "ontario", 2:13)
+erie1918_long <- gather(erie1918, "month", "erie", 2:13)
+superior1918_long <- gather(superior1918, "month", "superior", 2:13)
+clair1918_long <- gather(clair1918, "month", "clair", 2:13)
+```
+
+Take a peek at the Lake Huron data in long format.
+
+```{r}
+head(miHuron1918_long)
+```
+
+The months are three character strings. Let's create a date column that we can
+use for joining the individual tables as well as proper sorting.
+
+```{r}
+miHuron1918_long$date <- as.POSIXct(str_c(miHuron1918_long$month, " 1, ",
+                                                miHuron1918_long$year),
+                                          format="%b %d, %Y")
+
+ontario1918_long$date <- as.POSIXct(str_c(ontario1918_long$month, " 1, ",
+                                                ontario1918_long$year),
+                                          format="%b %d, %Y")
+
+erie1918_long$date <- as.POSIXct(str_c(erie1918_long$month, " 1, ",
+                                                erie1918_long$year),
+                                          format="%b %d, %Y")
+
+superior1918_long$date <- as.POSIXct(str_c(superior1918_long$month, " 1, ",
+                                                superior1918_long$year),
+                                          format="%b %d, %Y")
+
+clair1918_long$date <- as.POSIXct(str_c(clair1918_long$month, " 1, ",
+                                                clair1918_long$year),
+                                          format="%b %d, %Y")
+```
+
+```{r}
+head(miHuron1918_long)
+```
+
+Drop the year and month columns as they are no longer needed and move the
+date to the left most column.
+
+```{r}
+miHuron1918_long <- miHuron1918_long[, c(4,3)]
+ontario1918_long <- ontario1918_long[, c(4,3)]
+erie1918_long <- erie1918_long[, c(4,3)]
+superior1918_long <- superior1918_long[, c(4,3)]
+clair1918_long <- clair1918_long[, c(4,3)]
+```
+
+
+Now we can join the long format tables together using the new date field.
+
+```{r}
+lakes_long <- merge(miHuron1918_long, ontario1918_long, by = "date")
+lakes_long <- merge(lakes_long, erie1918_long, by = "date")
+lakes_long <- merge(lakes_long, superior1918_long, by = "date")
+lakes_long <- merge(lakes_long, clair1918_long, by = "date")
+```
+
+```{r}
+head(lakes_long)
+```
+
+Get dataframe into "tidy" format by creating a `lake` field and gathering (melt) the lake fields.
+
+```{r}
+lake_level <-  gather(lakes_long, 2:6, key = "lake", value = "waterlevelm")
+lake_level <- lake_level %>% 
+  arrange(lake, date)
+head(lake_level)
+```
+
+Clear up the workspace by getting rid of unneeded dataframes.
+
+```{r}
+rm(miHuron1918, ontario1918, erie1918, superior1918, clair1918)
+rm(miHuron1918_long, ontario1918_long, erie1918_long, superior1918_long, clair1918_long)
+rm(lakes_long)
+```
+
+If we plot all the lake level time series on one plot, we can see the differences in levels between lakes but the intra-lake variation is hidden by the scale.
+
+```{r, ts1, warning=FALSE}
+ggplot(lake_level) + geom_line(aes(x=date, y = waterlevelm, colour = lake)) +
+  ylab("Water level (m)")
+```
+
+Where did Lake St. Clair go? Probably hidden under Lake Ontario.
+
+```{r, ts1b, warning=FALSE}
+lake_level %>% 
+  filter(lake == 'clair' | lake == 'ontario') %>% 
+ggplot() + geom_line(aes(x=date, y = waterlevelm, colour = lake)) +
+  ylab("Water level (m)")
+```
+
+Hmm, are the measurements identical for Lake St. Clair and Lake Ontario?
+
+```{r}
+all(lake_level[lake_level$lake == 'ontario' & !is.na(lake_level$waterlevelm), 3] == lake_level[lake_level$lake == 'clair' & !is.na(lake_level$waterlevelm), 3])
+```
+
+Ok, let's drop Lake St. Clair.
+
+```{r}
+lake_level <- lake_level %>% 
+  filter(lake != 'clair')
+```
+
+Let's find the latest month for which we have data and save a version of this dataframe and tag it by the month.
+
+Here's how we can do this with base R.
+
+```{r lastmnth_base}
+last_month <- max(lake_level[!is.na(lake_level$waterlevelm),"date"])
+```
+
+And, here's a `dplyr` approach. Note the use of `pull()` to convert the the resulting 1x1 dataframe into a value.
+
+```{r lastmnth_dplyer}
+last_month_d <- lake_level %>% 
+  filter(!is.na(waterlevelm)) %>% 
+  select(date) %>% 
+  summarize(whichmonth = max(date)) %>% 
+  pull()
+```
+
+Save as an rds file.
+
+```{r}
+rdsname <- paste0("data/lake_level_", year(last_month), strftime(last_month,"%m"), ".rds")
+
+saveRDS(lake_level, rdsname)
+```
+
+
+```{r fig.width=16, fig.height=15, warning=FALSE}
+ts_all <- ggplot(lake_level) + geom_line(aes(x=date, y = waterlevelm, colour = lake)) + ylab("Water level (m)") +
+  facet_grid(lake~., scales = "free")
+
+ts_all
+```
+
+Compute water levels summary stats using `dplyr`.
+
+```{r}
+lake_level_stats <- lake_level %>%
+  group_by(lake) %>%
+  summarize(
+    mean_level = mean(waterlevelm, na.rm = TRUE),
+    sd_level = sd(waterlevelm, na.rm = TRUE),
+    cv_level = sd_level / mean_level,
+    min_level = min(waterlevelm, na.rm = TRUE),
+    max_level = max(waterlevelm, na.rm = TRUE),
+    p05_level = quantile(waterlevelm, 0.05, na.rm = TRUE),
+    p95_level = quantile(waterlevelm, 0.95, na.rm = TRUE)
+  )
+
+lake_level_stats
+```
+
+
+https://drsimonj.svbtle.com/plotting-individual-observations-and-group-means-with-ggplot2
+
+Let's try to combine time series with lines from the stats dataframe just created. Start with
+just one lake and then we can try with faceted plot by lake.
+
+
+
+```{r}
+lake_level_huron <- lake_level %>%
+  filter(lake == 'mihuron')
+
+lake_level_stats_huron <- lake_level_stats %>%
+  filter(lake == 'mihuron')
+```
+
+```{r tshuron, warning=FALSE}
+ggplot(lake_level_huron, aes(x = date, y = waterlevelm)) +
+  geom_line() + geom_hline(yintercept = lake_level_stats_huron$mean_level)
+```
+
+
+Tried and true approach is to add columns to original dataframe with repeated values or create
+dataframe by date with repeated values (and then try to overlay)
+
+
+```{r}
+lake_level_ts_stats <- merge(x = lake_level, y = lake_level_stats) %>%
+  arrange(lake, date)
+```
+
+
+Add overall mean and percentile bands.
+
+```{r ig.width=16, fig.height=15, warning=FALSE}
+ggplot(lake_level_ts_stats, aes(x = date, y = waterlevelm, colour = lake)) +
+  facet_grid(lake ~ ., scales = "free") +
+  geom_line() + 
+  geom_line(aes(y = mean_level)) + 
+  geom_line(linetype = "dashed", aes(y = p05_level)) + 
+  geom_line(linetype = "dashed", aes(y = p95_level))
+```
+
+## Time series analysis in R
+
+Quite a few packages. The [CRAN Task View: Time Series Analysis](https://cran.r-project.org/web/views/TimeSeries.html) page maintained by Rob J Hyndman is the place to start to see what's available.
+
+zoo and xts seem foundational.
+
+https://cran.r-project.org/web/packages/hydroTSM/index.html
+
+Let's add moving average using `tidyquant` library (which wraps a bunch of quant finance
+relevant libraries).
+
+
+```{r lib_tidyquant, warning=FALSE, message=FALSE}
+library(tidyquant)
+```
+
+```{r ts_SMA, fig.width=16, warning=FALSE}
+lake_level_ts_stats %>% 
+ggplot(aes(x = date, y = waterlevelm, colour = lake)) +
+  facet_grid(lake ~ ., scales = "free") +
+  geom_line() + 
+  geom_line(aes(y = mean_level)) + 
+  geom_line(linetype = "dashed", aes(y = p05_level)) + 
+  geom_line(linetype = "dashed", aes(y = p95_level)) + 
+  geom_ma(ma_fun = SMA, n=12, colour = "blue", linetype = "solid", size = 1)
+```
+
+
+

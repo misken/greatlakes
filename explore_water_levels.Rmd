@@ -1,0 +1,171 @@
+---
+title: "Great Lakes water levels"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libs, warning=FALSE, message=FALSE}
+library(readr)
+library(lubridate)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+
+```
+## Read previously saved RDS file
+
+In the get_water_levels.Rmd file, I downloaded and prepared a dataframe called 
+`lake_level`. The data files live in `data/` and filename includes most recent
+month of data in the dataset.
+
+```{r readdata}
+lake_level <- readRDS("data/lake_level_201908.rds")
+```
+
+Dashboard page: https://www.glerl.noaa.gov/data/dashboard/GLD_HTML5.html
+
+Data download page: https://www.glerl.noaa.gov/data/dashboard/data/
+
+Get all the data as a zip file:
+https://www.glerl.noaa.gov/data/dashboard/GLDData.zip
+
+Great Lakes Environmental Research Lab
+https://www.glerl.noaa.gov/
+
+Great Lakes Water Level Overview and Observations tab
+https://www.glerl.noaa.gov/data/wlevels/levels.html#overview
+https://www.glerl.noaa.gov/data/wlevels/levels.html#observations
+
+Raw water level data (6 minute temporal resolution) available by station at:
+https://tidesandcurrents.noaa.gov/stations.html?type=Water+Levels
+
+Great Lakes Coordination Committee (US and CA)
+http://www.greatlakescc.org/wp36/
+
+US Army Corp of Engineers
+https://www.lre.usace.army.mil/Missions/Great-Lakes-Information/
+
+https://www.lre.usace.army.mil/Missions/Great-Lakes-Information/Great-Lakes-Water-Levels/Water-Level-Forecast/Weekly-Great-Lakes-Water-Levels/
+
+Fisheries and Oceans CA - observational data and forecasts
+https://waterlevels.gc.ca/eng
+
+Great Lakes Seasonal Hydrological Forecasting Products (Experimental)
+https://www.glerl.noaa.gov/ahps/curfcst.html
+https://www.lre.usace.army.mil/Missions/Great-Lakes-Information/Great-Lakes-Water-Levels/Water-Level-Forecast/Long-Term-Forecast/
+
+## Time series plots
+
+```{r fig.width=16, fig.height=15, warning=FALSE}
+ts_all <- ggplot(lake_level) + geom_line(aes(x=date, y = waterlevelm, colour = lake)) + ylab("Water level (m)") +
+  facet_grid(lake~., scales = "free")
+
+ts_all
+```
+
+Compute water levels summary stats using `dplyr`.
+
+```{r}
+lake_level_stats <- lake_level %>%
+  group_by(lake) %>%
+  summarize(
+    mean_level = mean(waterlevelm, na.rm = TRUE),
+    sd_level = sd(waterlevelm, na.rm = TRUE),
+    cv_level = sd_level / mean_level,
+    min_level = min(waterlevelm, na.rm = TRUE),
+    max_level = max(waterlevelm, na.rm = TRUE),
+    p05_level = quantile(waterlevelm, 0.05, na.rm = TRUE),
+    p95_level = quantile(waterlevelm, 0.95, na.rm = TRUE)
+  )
+
+lake_level_stats
+```
+
+
+https://drsimonj.svbtle.com/plotting-individual-observations-and-group-means-with-ggplot2
+
+Let's try to combine time series with lines from the stats dataframe just created. Start with
+just one lake and then we can try with faceted plot by lake.
+
+
+
+```{r}
+lake_level_huron <- lake_level %>%
+  filter(lake == 'mihuron')
+
+lake_level_stats_huron <- lake_level_stats %>%
+  filter(lake == 'mihuron')
+```
+
+```{r tshuron, warning=FALSE}
+ggplot(lake_level_huron, aes(x = date, y = waterlevelm)) +
+  geom_line() + geom_hline(yintercept = lake_level_stats_huron$mean_level)
+```
+
+
+Tried and true approach is to add columns to original dataframe with repeated values or create
+dataframe by date with repeated values (and then try to overlay)
+
+
+```{r}
+lake_level_ts_stats <- merge(x = lake_level, y = lake_level_stats) %>%
+  arrange(lake, date)
+```
+
+
+Add overall mean and percentile bands.
+
+```{r ig.width=16, fig.height=15, warning=FALSE}
+ggplot(lake_level_ts_stats, aes(x = date, y = waterlevelm, colour = lake)) +
+  facet_grid(lake ~ ., scales = "free") +
+  geom_line() + 
+  geom_line(aes(y = mean_level)) + 
+  geom_line(linetype = "dashed", aes(y = p05_level)) + 
+  geom_line(linetype = "dashed", aes(y = p95_level))
+```
+
+## Time series analysis in R
+
+Quite a few packages. The [CRAN Task View: Time Series Analysis](https://cran.r-project.org/web/views/TimeSeries.html) page maintained by Rob J Hyndman is the place to start to see what's available.
+
+zoo and xts seem foundational.
+
+https://cran.r-project.org/web/packages/hydroTSM/index.html
+
+Let's add moving average using `tidyquant` library (which wraps a bunch of quant finance
+relevant libraries).
+
+
+```{r lib_tidyquant, warning=FALSE, message=FALSE}
+library(tidyquant)
+```
+
+```{r ts_SMA, fig.width=16, warning=FALSE}
+lake_level_ts_stats %>% 
+ggplot(aes(x = date, y = waterlevelm, colour = lake)) +
+  facet_grid(lake ~ ., scales = "free") +
+  geom_line() + 
+  geom_line(aes(y = mean_level)) + 
+  geom_line(linetype = "dashed", aes(y = p05_level)) + 
+  geom_line(linetype = "dashed", aes(y = p95_level)) + 
+  geom_ma(ma_fun = SMA, n=12, colour = "blue", linetype = "solid", size = 1)
+```
+
+## Lake level drivers
+
+From https://www.glerl.noaa.gov/data/wlevels/levels.html#observations:
+
+> The water levels of the Great Lakes fluctuate at different time scales to different forces. Very short-term water level changes, viewable in the interactive charts above, are caused by wind and storms. These short-term (hours to days) effects can be dramatic, and can cause the lake levels from one side of the lake to the other to vary by several meters for a short time. Each of the Great Lakes has an annual rise and fall cycle driven by the timing of precipitation, snow melt, and evaporation. In general, the lakes are at their lowest levels in the winter and highest levels in summer or fall. The range in annual rise is from 11 to 20 inches.
+
+St. Mary's River flows into MI-Huron and St. Clair River flows out.
+
+Precipitation and evaporation should be main drivers.
+
+How does temperature affect lake levels?
+
+How does wind speed and direction affect local lake levels?
+
