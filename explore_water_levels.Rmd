@@ -140,24 +140,24 @@ zoo and xts seem foundational.
 
 https://cran.r-project.org/web/packages/hydroTSM/index.html
 
-Let's add moving average using `tidyquant` library (which wraps a bunch of quant finance
-relevant libraries).
+<!-- Let's add moving average using `tidyquant` library (which wraps a bunch of quant finance -->
+<!-- relevant libraries). -->
 
 
-```{r lib_tidyquant, warning=FALSE, message=FALSE}
-library(tidyquant)
-```
+<!-- ```{r lib_tidyquant, warning=FALSE, message=FALSE} -->
+<!-- library(tidyquant) -->
+<!-- ``` -->
 
-```{r ts_SMA, fig.width=16, warning=FALSE}
-lake_level_ts_stats %>% 
-ggplot(aes(x = date, y = waterlevelm, colour = lake)) +
-  facet_grid(lake ~ ., scales = "free") +
-  geom_line() + 
-  geom_line(aes(y = mean_level)) + 
-  geom_line(linetype = "dashed", aes(y = p05_level)) + 
-  geom_line(linetype = "dashed", aes(y = p95_level)) + 
-  geom_ma(ma_fun = SMA, n=12, colour = "blue", linetype = "solid", size = 1)
-```
+<!-- ```{r ts_SMA, fig.width=16, warning=FALSE} -->
+<!-- lake_level_ts_stats %>%  -->
+<!-- ggplot(aes(x = date, y = waterlevelm, colour = lake)) + -->
+<!--   facet_grid(lake ~ ., scales = "free") + -->
+<!--   geom_line() +  -->
+<!--   geom_line(aes(y = mean_level)) +  -->
+<!--   geom_line(linetype = "dashed", aes(y = p05_level)) +  -->
+<!--   geom_line(linetype = "dashed", aes(y = p95_level)) +  -->
+<!--   geom_ma(ma_fun = SMA, n=12, colour = "blue", linetype = "solid", size = 1) -->
+<!-- ``` -->
 
 ## Lake level drivers
 
