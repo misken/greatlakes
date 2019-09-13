@@ -58,6 +58,10 @@ Great Lakes Seasonal Hydrological Forecasting Products (Experimental)
 https://www.glerl.noaa.gov/ahps/curfcst.html
 https://www.lre.usace.army.mil/Missions/Great-Lakes-Information/Great-Lakes-Water-Levels/Water-Level-Forecast/Long-Term-Forecast/
 
+https://www.washingtonpost.com/weather/2019/06/06/great-lakes-are-overflowing-with-record-amounts-water/
+
+http://theconversation.com/climate-change-is-driving-rapid-shifts-between-high-and-low-water-levels-on-the-great-lakes-118095
+
 ## Time series plots
 
 ```{r fig.width=16, fig.height=15, warning=FALSE}
