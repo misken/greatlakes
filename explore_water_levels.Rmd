@@ -165,6 +165,11 @@ From https://www.glerl.noaa.gov/data/wlevels/levels.html#observations:
 
 > The water levels of the Great Lakes fluctuate at different time scales to different forces. Very short-term water level changes, viewable in the interactive charts above, are caused by wind and storms. These short-term (hours to days) effects can be dramatic, and can cause the lake levels from one side of the lake to the other to vary by several meters for a short time. Each of the Great Lakes has an annual rise and fall cycle driven by the timing of precipitation, snow melt, and evaporation. In general, the lakes are at their lowest levels in the winter and highest levels in summer or fall. The range in annual rise is from 11 to 20 inches.
 
+Why do the plots seem to have such a short term up and down pattern? What
+is the auto-correlation structure look like for each lake?
+
+What do quarterly plots and indices look like?
+
 St. Mary's River flows into MI-Huron and St. Clair River flows out.
 
 Precipitation and evaporation should be main drivers.
@@ -172,4 +177,6 @@ Precipitation and evaporation should be main drivers.
 How does temperature affect lake levels?
 
 How does wind speed and direction affect local lake levels?
+
+Why
 
